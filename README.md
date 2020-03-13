@@ -7,6 +7,7 @@ The daemon monitors events in the specified folder (in wordpress projects it is 
 
 * git clone https://github.com/DmitriyEvg/inotify-cache.git
 * cd inotify-cache
+* chmod +x bin/inotify.sh (optional make executable)
 * cp service/inotify-cache.service /etc/systemd/system/
 * systemctl daemon-reload
 * systemctl enable inotify-cache.service (autostart boot)

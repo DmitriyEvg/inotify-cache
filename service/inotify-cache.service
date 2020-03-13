@@ -9,11 +9,11 @@ Restart=on-failure
 RestartSec=5
 
 [Service]
-ExecStart=/usr/bin/bash /opt/inotify-cache/bin/inotyfy.sh
+ExecStart=/usr/bin/bash /opt/inotify-cache/bin/inotify.sh
 Restart=always
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=inotyfy-cache
+SyslogIdentifier=inotify-cache
 
 [Install]
 WantedBy=multi-user.target

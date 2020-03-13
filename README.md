@@ -18,7 +18,7 @@ The daemon monitors events in the specified folder (in wordpress projects it is 
 
 ## Notify settings
 * src_dir="PATH_TO_WP_CACHE_FOLDER"
-* events="delete"
+* events="delete" (type of events)
 * daemon_path="PATH_TO_DAEMON_FOLDER"
 
 ## Telegram API settings

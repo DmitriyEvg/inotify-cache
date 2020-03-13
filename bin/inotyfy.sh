@@ -1,25 +1,25 @@
 #!/bin/bash
 
 # Main URL
-domName="karmatantric.com"
+domName="YOUR_DOMAIN_NAME"
 
 # Notify settings
-src_dir="/home/admin/web/karmatantric.com/public_shtml/wp-content/cache/"
+src_dir="PATH_TO_WP_CACHE_FOLDER"
 autoptimize_dir="${src_dir}autoptimize/"
 wprocket_dir="${src_dir}wp-rocket/"
 events="delete"
-daemon_path="/opt/inotify-cache"
+daemon_path="PATH_TO_DAEMON_FOLDER"
 purge_path="$daemon_path/purgelist"
 purge_local_path="$purge_path/localcache"
 purge_cloud_path="$purge_path/cloudflare"
 
 # Telegram API settings
-bot_token="1138127546:AAFG2SiP9r1JzYeSdl5SdIK72ReJqWO_KzY"
-chat_id="-484930259"
+bot_token="YOUR_VALUE"
+chat_id="YOUR_VALUE"
 
 # CloudFlare API settings
-zoneID="6d15faae24d8db3740e704fb71d0611b"
-token="Sp0GhyQ8dlwb7eWLSTLSD87TGmH0-KUlE4Nl2y1r"
+zoneID="YOUR_VALUE"
+token="YOUR_VALUE"
 api_url="https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache"
 
 

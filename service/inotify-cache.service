@@ -1,0 +1,20 @@
+[Unit]
+Description=inotify-cache messages service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=
+Restart=on-failure
+RestartSec=5
+
+[Service]
+ExecStart=/usr/bin/bash /opt/inotify-cache/bin/inotyfy.sh
+Restart=always
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=inotyfy-cache
+
+[Install]
+WantedBy=multi-user.target
+

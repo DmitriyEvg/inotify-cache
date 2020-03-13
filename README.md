@@ -3,8 +3,10 @@ Daemon "inotify-cache" for auto-cleaning the local cache and CloudFlare cache in
 
 The daemon monitors events in the specified folder (in wordpress projects it is wp-content / cache) and when changes are detected, it smart cleans the cache of various types.
 
-# install
+# pre install action
+* yum install inotify-tools
 
+# install
 * git clone https://github.com/DmitriyEvg/inotify-cache.git
 * cd inotify-cache
 * chmod +x bin/inotify.sh (optional make executable)

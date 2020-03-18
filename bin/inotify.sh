@@ -22,9 +22,8 @@ zoneID="YOUR_VALUE"
 token="YOUR_VALUE"
 api_url="https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache"
 
-
 ## Get timestamp function
-function get_timestamp {
+function get_timestamp() {
     echo $(date '+%Y%m%d%H%M%S')
 }
 
@@ -34,60 +33,65 @@ function send_message(){
 }
 
 
-## Add detect filesList for purge worker
-function add_purge_file(){
-    detect_fileList=$(grep -r --include *.html -l $1 $wprocket_dir)
-    if [[ ! -z "$detect_fileList" ]]; then
-        echo "$detect_fileList" >> $purge_local_path/$(get_timestamp)
-    fi
+## Add task for purge worker
+function add_filePurge_task(){
+        echo "task up" >> "$purge_local_path/task"
 }
 
-## Add detect URL's for purge worker
-function add_purge_url(){
-    echo -e "\"$1\"" >> $purge_cloud_path/$(get_timestamp)
+# Get autoptimize_fileList
+function get_autoptimize_fileList(){
+    # autoptimize_fileList
+    css_fileList=$(ls ${autoptimize_dir}css | grep -E 'autoptimize_[a-zA-Z0-9]{32}.css')
+    js_fileList=$(ls ${autoptimize_dir}js | grep -E '^autoptimize_[a-zA-Z0-9]{32}.js')
+    autoptimize_fileList=$(echo -e "${css_fileList}\n${js_fileList}")
+    echo "$autoptimize_fileList"
 }
-
 
 ## Local files cache purge
 function purge_files(){
-    timestamp=$(date '+%Y%m%d%H%M%S')
-    let "doneTime=$timestamp - 1"
-    fileList=( $(ls $purge_local_path) )
-    for fileName in ${fileList[@]}
-    do
-        if [[ "$fileName" -le "$doneTime" ]]; then
-            remove_fileList=$(cat $purge_local_path/$fileName)
-            while read LINE; do
-                rm $LINE* -f
-            done <<< "$remove_fileList"
-            send_message $chat_id "Autopurge wp-rocket cache: $remove_fileList"
-            rm $purge_local_path/$fileName -f
-        fi
-    done
+    taskDetect=$(ls $purge_local_path | wc -l)
+
+    if [ "$taskDetect" -ne "0" ]; then
+
+        rm "$purge_local_path/task" -f
+
+        send_message $chat_id "run purge cache process"
+
+        # html_fileList
+        html_fileList=$(find $wprocket_dir -name *.html)
+
+        while read cacheFile; do
+            autoptimize_fileList=$(get_autoptimize_fileList)
+            page_autoptimizeLinks="$(cat $cacheFile | grep -o -E 'autoptimize_[a-zA-Z0-9]{32}.(css|js)' | uniq)"
+            page_autoptimizeLinksCount=$(echo "$page_autoptimizeLinks" | wc -l)
+            reg_autoptimizeLinks=$(echo $page_autoptimizeLinks | tr " " "|")
+
+            validLinksCount=$(echo "$autoptimize_fileList" | grep -E "$reg_autoptimizeLinks" | wc -l)
+
+            if [ "$page_autoptimizeLinksCount" -ne "$validLinksCount" ]; then
+                rm "${cacheFile}" -f
+                rm "${cacheFile}_gzip" -f
+                cacheURL="https://$(echo "$cacheFile" | sed "s/wp-rocket\//\n/g" | tail -n 1 | sed 's/index-https.html//g')"
+                curl -s -k -o /dev/null "$cacheURL"
+                purge_cloudflare "$cacheURL"
+            fi
+        done <<< "$html_fileList"
+
+        send_message $chat_id "purge cache process complete"
+    fi
 }
 
 ## CloudFlare API purge by URL
 function purge_cloudflare(){
-    p_timestamp=$(date '+%Y%m%d%H%M%S')
-    let "p_doneTime=$p_timestamp - 1"
-    p_fileList=( $(ls $purge_cloud_path) )
-    for p_fileName in ${p_fileList[@]}
-    do
-        if [[ "$p_fileName" -le "$p_doneTime" ]]; then
-            purgeListRAW=$(cat $purge_cloud_path/$p_fileName | tr "\n" ",")
-            purgeList=${purgeListRAW::-1}
-            data="{\"files\":[$purgeList]}"
-            purgeRequest=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache" -H "Authorization: Bearer $token" -H "Content-Type: application/json" --data "$data" > /dev/null)
-            send_message $chat_id "Autopurge cloudflare cache: $purgeList"
-            rm $purge_cloud_path/$p_fileName -f
-        fi
-    done
+    data="{\"files\":[\"$1\",{\"url\":\"$1\"}]}"
+    purgeRequest=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache" -H \
+        "Authorization: Bearer $token" -H "Content-Type: application/json" --data "$data")
 }
 
 ## Worker for purge processing
 function worker(){
 while true; do
-    purge_files && purge_cloudflare
+    purge_files
     sleep 5
 done
 }
@@ -112,21 +116,17 @@ do
 
   # autoptimize
   if [[ "$dirName" == *"$autoptimize_dir"* ]]; then
-    add_purge_file $fileName
-    purgeURL="https://$domName/$(echo $dirName$fileName | sed 's/wp-content/\nwp-content/g' | tail -n 1)"
-    add_purge_url $purgeURL
+    add_filePurge_task
   fi
 
   # wp-rocket
-  if [[ "$dirName$fileName" == *"$wprocket_dir"*".html" ]]; then
-    purgeURL="https://$domName/$(echo $dirName | sed "s/wp-rocket\/$domName\//\n/g" | tail -n 1)"
-    add_purge_url $purgeURL
-  fi
+  #if [[ "$dirName$fileName" == *"$wprocket_dir"*".html" ]]; then
+  #    TODO
+  #fi
 
 done
 )
 }
-
 
 ## Start application
 inotify_files

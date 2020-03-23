@@ -9,22 +9,23 @@ autoptimize_dir="${src_dir}autoptimize/"
 wprocket_dir="${src_dir}wp-rocket/"
 events="delete"
 daemon_path="PATH_TO_DAEMON_FOLDER"
-purge_path="$daemon_path/purgelist"
-purge_local_path="$purge_path/localcache"
-purge_cloud_path="$purge_path/cloudflare"
+tasks_path="$daemon_path/tasks"
+checkCache_path="$tasks_path/checkCache"
+purgeCache_path="$tasks_path/purgeCache"
+trash_path="$tasks_path/trash"
 
 # Telegram API settings
 bot_token="YOUR_VALUE"
 chat_id="YOUR_VALUE"
 
 # CloudFlare API settings
-zoneID="YOUR_VALUE"
 token="YOUR_VALUE"
-api_url="https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache"
+api_url="WORKER_URL"
+api_everething="WORKER_URL"
 
 ## Get timestamp function
 function get_timestamp() {
-    echo $(date '+%Y%m%d%H%M%S')
+    echo $(date '+%Y%m%d%H%M')
 }
 
 ## Telegram API messanger function
@@ -34,8 +35,8 @@ function send_message(){
 
 
 ## Add task for purge worker
-function add_filePurge_task(){
-        echo "task up" >> "$purge_local_path/task"
+function add_cacheCheck_task(){
+        echo "task up" >> "$checkCache_path/task"
 }
 
 # Get autoptimize_fileList
@@ -47,15 +48,12 @@ function get_autoptimize_fileList(){
     echo "$autoptimize_fileList"
 }
 
-## Local files cache purge
-function purge_files(){
-    taskDetect=$(ls $purge_local_path | wc -l)
+## checkCache valid links
+function checkCache(){
 
-    if [ "$taskDetect" -ne "0" ]; then
+    if [ -f "$checkCache_path/task" ]; then
 
-        rm "$purge_local_path/task" -f
-
-        send_message $chat_id "run purge cache process"
+        send_message $chat_id "run checkCache process"
 
         # html_fileList
         html_fileList=$(find $wprocket_dir -name *.html)
@@ -69,29 +67,75 @@ function purge_files(){
             validLinksCount=$(echo "$autoptimize_fileList" | grep -E "$reg_autoptimizeLinks" | wc -l)
 
             if [ "$page_autoptimizeLinksCount" -ne "$validLinksCount" ]; then
-                rm "${cacheFile}" -f
+
+                # Remove current cache files
+                mv "${cacheFile}" "$trash_path/" -f
                 rm "${cacheFile}_gzip" -f
+
+                # Send preload request
                 cacheURL="https://$(echo "$cacheFile" | sed "s/wp-rocket\//\n/g" | tail -n 1 | sed 's/index-https.html//g')"
                 curl -s -k -o /dev/null "$cacheURL"
-                purge_cloudflare "$cacheURL"
             fi
         done <<< "$html_fileList"
 
-        send_message $chat_id "purge cache process complete"
+        send_message $chat_id "checkCache process complete"
+
+        rm "$checkCache_path/task" -f
+
     fi
 }
 
+
+## Add task for purge CloudFlare
+function add_purgeCache_task(){
+        echo "\"$1\"," >> "$purgeCache_path/$(get_timestamp)"
+}
+
+## task purge CloudFlare
+function purgeCache(){
+    taskFilesList=( $(ls $purgeCache_path) )
+    let "doneFileList=$(get_timestamp) - 1"
+
+    for taskFile in ${taskFilesList[@]}; do
+        if [ "$taskFile" -le "$doneFileList" ]; then
+            countURL=$(cat "$purgeCache_path/$taskFile" | uniq | wc -l )
+            if [ "$countURL" -gt "10" ]; then
+                rm "$purgeCache_path/$taskFile"
+                purge_cloudflareEverithing
+            else
+                doneList=$(cat "$purgeCache_path/$taskFile" | uniq | tr -d "\n")
+                rm "$purgeCache_path/$taskFile"
+                purge_cloudflareURL "${doneList::-1}"
+            fi
+        fi
+    done
+}
+
+
 ## CloudFlare API purge by URL
-function purge_cloudflare(){
-    data="{\"files\":[\"$1\",{\"url\":\"$1\"}]}"
-    purgeRequest=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$zoneID/purge_cache" -H \
-        "Authorization: Bearer $token" -H "Content-Type: application/json" --data "$data")
+function purge_cloudflareURL(){
+    data="{\"files\":[$1]}"
+    send_message $chat_id "start purge CF by URL's"
+    purgeRequest=$(curl --resolve "$domName:443:104.25.117.7" -s -X POST "$api_url" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type:application/json" --data "$data")
+    send_message $chat_id "purge CF by URL's done"
+}
+
+## CloudFlare API purge by URL
+function purge_cloudflareEverithing(){
+    send_message $chat_id "start purge CF everything"
+    purgeRequest=$(curl --resolve "$domName:443:104.25.117.7" -s -X POST "$api_everething" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type:application/json" \
+        --data '{"purge_everything":true}')
+    send_message $chat_id "purge CF everything done"
 }
 
 ## Worker for purge processing
 function worker(){
 while true; do
-    purge_files
+    checkCache && purgeCache
     sleep 5
 done
 }
@@ -114,15 +158,19 @@ do
   dirName=$(echo $REPLY | cut -f 2 -d' ')
   fileName=$(echo $REPLY | cut -f 3 -d' ')
 
-  # autoptimize
+  # detect "DELETE" in autoptimize cache
   if [[ "$dirName" == *"$autoptimize_dir"* ]]; then
-    add_filePurge_task
+    if [ ! -f "$purge_local_path/task" ]; then
+        add_cacheCheck_task
+    fi
   fi
 
-  # wp-rocket
-  #if [[ "$dirName$fileName" == *"$wprocket_dir"*".html" ]]; then
-  #    TODO
-  #fi
+  # detect "DELETE" in wp-rocket cache
+  if [[ "$dirName$fileName" == *"$wprocket_dir"*".html" ]]; then
+    cacheURL="https://$(echo "$dirName$fileName" | sed "s/wp-rocket\//\n/g" | tail -n 1 | sed 's/index-https.html//g')"
+    #echo -e "$eventName\t$cacheURL"
+    add_purgeCache_task "$cacheURL"
+  fi
 
 done
 )

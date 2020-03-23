@@ -21,7 +21,7 @@ chat_id="YOUR_VALUE"
 # CloudFlare API settings
 token="YOUR_VALUE"
 api_url="WORKER_URL"
-api_ything="WORKER_URL"
+api_everything="WORKER_URL"
 
 ## Get timestamp function
 function get_timestamp() {

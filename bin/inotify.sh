@@ -21,7 +21,7 @@ chat_id="YOUR_VALUE"
 # CloudFlare API settings
 token="YOUR_VALUE"
 api_url="WORKER_URL"
-api_everething="WORKER_URL"
+api_ything="WORKER_URL"
 
 ## Get timestamp function
 function get_timestamp() {
@@ -101,7 +101,7 @@ function purgeCache(){
             countURL=$(cat "$purgeCache_path/$taskFile" | uniq | wc -l )
             if [ "$countURL" -gt "10" ]; then
                 rm "$purgeCache_path/$taskFile"
-                purge_cloudflareEverithing
+                purge_cloudflareEverything
             else
                 doneList=$(cat "$purgeCache_path/$taskFile" | uniq | tr -d "\n")
                 rm "$purgeCache_path/$taskFile"
@@ -123,9 +123,9 @@ function purge_cloudflareURL(){
 }
 
 ## CloudFlare API purge by Everithing
-function purge_cloudflareEverithing(){
+function purge_cloudflareEverything(){
     send_message $chat_id "start purge CF everything"
-    purgeRequest=$(curl --resolve "$domName:443:104.25.117.7" -s -X POST "$api_everething" \
+    purgeRequest=$(curl --resolve "$domName:443:104.25.117.7" -s -X POST "$api_everything" \
         -H "Authorization: Bearer $token" \
         -H "Content-Type:application/json" \
         --data '{"purge_everything":true}')

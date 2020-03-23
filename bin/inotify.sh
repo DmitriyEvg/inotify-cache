@@ -122,7 +122,7 @@ function purge_cloudflareURL(){
     send_message $chat_id "purge CF by URL's done"
 }
 
-## CloudFlare API purge by URL
+## CloudFlare API purge by Everithing
 function purge_cloudflareEverithing(){
     send_message $chat_id "start purge CF everything"
     purgeRequest=$(curl --resolve "$domName:443:104.25.117.7" -s -X POST "$api_everething" \
